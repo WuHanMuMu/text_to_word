@@ -83,14 +83,13 @@ def read_the_voice(file_name):
     data = p.stdout.read()
     data = str(data).replace("\\n",'')[2:-1]
     data = json.loads(data)
-    print('===>',data)
     audio_len = int(float(data['format']['duration'])) + 1
     return audio_len
 
 if __name__ == '__main__':
     words = read_word("./word.txt")
     vioce_name = get_the_voice(words)
-    print(vioce_name)
+    print('生产音频文件',vioce_name)
     video_time = read_the_voice(vioce_name)
     video_fps = 30
     offset = image_height // (video_fps * video_time)
@@ -101,15 +100,15 @@ if __name__ == '__main__':
         filename = './imgs_{0}/{1}.jpg'.format(timestamp,i+1)
         now_off = offset * i 
         draw_one_picture(filename,words,now_off)
-    video_name = './video/{1}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S'))
-    result_name = './results/{1}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S'))
+    video_name = './video/{0}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    result_name = './results/{0}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
     # print("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg ./results/{1}.mp4".format(timestamp,video_name))
-    p = subprocess.Popen("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg {1}".format(timestamp,result_name),shell=True)
+    p = subprocess.Popen("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg {1}".format(timestamp,video_name),shell=True)
     p.wait()
-    print('生成文件名为',result_name)
+    print('生成文件名为',video_name)
     print("开始音频视频合并")
-
-    p = subprocess.Popen('ffmpeg -i {0} -i {1} {2}'.format(video_name,vioce_name,result_name))
+    
+    p = subprocess.Popen('ffmpeg -i {0} -i {1}  {2} -strict -2'.format(video_name,vioce_name,result_name))
     p.wait()
     print("合并完成 视频名",result_name)
  

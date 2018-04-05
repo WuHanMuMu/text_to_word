@@ -9,6 +9,7 @@ from wand.image import Image
 import json
 import requests
 
+
 # 每一行最多35个字
 line_word_num = 35
 # 行首空50px 
@@ -101,14 +102,15 @@ if __name__ == '__main__':
         now_off = offset * i 
         draw_one_picture(filename,words,now_off)
     video_name = './video/{0}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
-    result_name = './results/{0}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    # 这里因为码率的问题 只能吧文件改成mkv格式
+    result_name = './results/{0}.mkv'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
     # print("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg ./results/{1}.mp4".format(timestamp,video_name))
-    p = subprocess.Popen("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg {1}".format(timestamp,video_name),shell=True)
+    p = subprocess.Popen("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg {1}".format(timestamp,video_name),shell=True,stdout=subprocess.PIPE)
     p.wait()
     print('生成文件名为',video_name)
     print("开始音频视频合并")
     
-    p = subprocess.Popen('ffmpeg -i {0} -i {1}  {2} -strict -2'.format(video_name,vioce_name,result_name))
+    p = subprocess.Popen('ffmpeg -i {0} -i {1} -strict -2 {2} '.format(os.path.abspath(video_name),os.path.abspath(vioce_name),os.path.abspath(result_name)),shell=True,stdout=subprocess.PIPE)
     p.wait()
     print("合并完成 视频名",result_name)
  

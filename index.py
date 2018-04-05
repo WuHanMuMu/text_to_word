@@ -6,6 +6,8 @@ from wand.color import Color
 from wand.display import display
 from wand.drawing import Drawing
 from wand.image import Image
+import json
+import requests
 
 # 每一行最多35个字
 line_word_num = 35
@@ -53,9 +55,43 @@ def draw_one_picture(filename,words,offset,height=400,width=900):
             image.save(filename=filename)
 
 
+def get_the_voice(words):
+    token_url = 'https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials&client_id=MbzkUpa5EI2bdxNF9rOtDzIz&client_secret=9a7a60b57c108563faeb1eb134b32f3a'
+    tts_url = 'https://tsn.baidu.com/text2audio'
+    res = requests.get(token_url)
+    data = res.json()
+    token = data['access_token']
+    params = {
+        'tex':','.join(words),
+        'tok':token,
+        'cuid':'121212121212121212',
+        'ctp':"1",
+        'lan':"zh"
+    }
+    r = requests.get(tts_url,params=params)
+    if r.headers['content-type'] == 'audio/mp3':
+        file_name = './voice/_{0}.mp3'.format(int(time.time()))
+        with open(file_name,'wb') as mp3:
+            mp3.write(r.content)
+        return file_name
+    return None
+
+
+def read_the_voice(file_name):
+    p = subprocess.Popen('ffprobe -i {0} -print_format json  -show_format  -v 0 '.format(file_name),stdout=subprocess.PIPE,shell=True,bufsize=100000)
+    p.wait()
+    data = p.stdout.read()
+    data = str(data).replace("\\n",'')[2:-1]
+    data = json.loads(data)
+    print('===>',data)
+    audio_len = int(float(data['format']['duration'])) + 1
+    return audio_len
+
 if __name__ == '__main__':
     words = read_word("./word.txt")
-    video_time = 1
+    vioce_name = get_the_voice(words)
+    print(vioce_name)
+    video_time = read_the_voice(vioce_name)
     video_fps = 30
     offset = image_height // (video_fps * video_time)
     timestamp = int(time.time())
@@ -65,8 +101,17 @@ if __name__ == '__main__':
         filename = './imgs_{0}/{1}.jpg'.format(timestamp,i+1)
         now_off = offset * i 
         draw_one_picture(filename,words,now_off)
-    result_name = datetime.datetime.now().strftime('%Y-%m-%d')
-    print("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg ./results/{1}.mp4".format(timestamp,result_name))
-    p = subprocess.Popen("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg ./results/{1}.mp4".format(timestamp,result_name),shell=True)
+    video_name = './video/{1}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S'))
+    result_name = './results/{1}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S'))
+    # print("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg ./results/{1}.mp4".format(timestamp,video_name))
+    p = subprocess.Popen("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg {1}".format(timestamp,result_name),shell=True)
     p.wait()
     print('生成文件名为',result_name)
+    print("开始音频视频合并")
+
+    p = subprocess.Popen('ffmpeg -i {0} -i {1} {2}'.format(video_name,vioce_name,result_name))
+    p.wait()
+    print("合并完成 视频名",result_name)
+ 
+    
+  

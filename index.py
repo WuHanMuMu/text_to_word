@@ -25,6 +25,7 @@ image_width = 900
 # 视频帧数
 video_fps = 30
 
+
 def read_word(filename:str):
     words = []
     with open(filename,encoding='utf8') as file:
@@ -33,20 +34,46 @@ def read_word(filename:str):
                 words.append(line.strip().replace(os.linesep,''))
     return words
 
+
 def cal_offset(words,video_time):
     lines = 0
+    offset_result = []
     print(words)
+    # 这里用每一行的字数 来 判断偏移值
+    total = 0
     for word in words:
         lines = lines + len(word) // line_word_num + 1
+        total = total + len(word)
+    word_time = video_time / total
     # lines = len(words)// line_word_num  + 1
     # 总高度/页高 * 页高 / 时间
     print(lines)
     total_height = lines * line_height + lines * line_split
-    print(total_height,video_time)
-    offset = total_height // (video_time * video_fps)
+    print(total_height, video_time)
+    offset = total_height / (video_time * video_fps)
     if total_height < image_height:
         offset = 0
-    return offset /10
+    return offset
+
+
+def cal_height(line):
+    return (line + 1) * line_height + line * line_split
+
+
+def cal_offset_v2(words,video_time):
+    total = 0
+    res = []
+    for word in words:
+        total = total + len(word)
+    word_time = video_time / total
+    for index,val in enumerate(words):
+        # print(index,val)
+        height = cal_height(len(val) // line_word_num + 1)
+        time = len(val) * word_time
+        offset = height / time * video_fps
+        res.append(offset)
+    return res
+
 
 def draw_one_picture(filename,words,offset,height=400,width=900):
     with Color("#FFFACD") as bg:
@@ -59,11 +86,14 @@ def draw_one_picture(filename,words,offset,height=400,width=900):
                 word_len = len(word) 
                 for i in range((word_len // line_word_num) + 1):
                     line_word = word[i*line_word_num:(i+1)*line_word_num]
-                    y = line_block + line * line_split - offset 
-                    if y < 0:
+                    y = line_block + line * line_split - offset
+                    line = line + 1
+                    if y < -10:
                         continue
                     if y > image_height:
                         break
+                    if y < 0:
+                        y = 0
                     if i == 0:
                         draw.text(line_block, y, line_word)
                     else: 
@@ -72,6 +102,7 @@ def draw_one_picture(filename,words,offset,height=400,width=900):
                     # display(image)
                     line = line + 1
             image.save(filename=filename)
+
 
 def multi_voice(words,token):
     length = len(words)
@@ -133,7 +164,6 @@ def get_the_voice(words):
         return None
 
 
-
 def read_the_voice(file_name):
     p = subprocess.Popen('ffprobe -i {0} -print_format json  -show_format  -v 0 '.format(file_name),stdout=subprocess.PIPE,shell=True,bufsize=100000)
     p.wait()
@@ -143,6 +173,7 @@ def read_the_voice(file_name):
     audio_len = int(float(data['format']['duration'])) + 1
     return audio_len
 
+
 if __name__ == '__main__':
     words = read_word("./word.txt")
     vioce_name = get_the_voice(words)
@@ -150,13 +181,14 @@ if __name__ == '__main__':
     video_time = read_the_voice(vioce_name)
     print('生成音频长度为',video_time ,'秒')
     offset = cal_offset(words,video_time)
+    offset = cal_offset_v2(words,video_time)
     print("计算出每帧偏移值为",offset)
     timestamp = int(time.time())
     dir_name = './images/imgs_{0}'.format(timestamp)
     os.makedirs(dir_name)
     for i in range(video_fps * video_time) :
         filename = './images/imgs_{0}/{1}.jpg'.format(timestamp,i+1)
-        now_off = int(offset * i) 
+        now_off = int(offset[i] * i)
         # print('===>',now_off,offset)
         draw_one_picture(filename,words,now_off)
     video_name = './video/{0}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))

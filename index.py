@@ -1,14 +1,14 @@
+import datetime
+import json
 import os
 import subprocess
 import time
-import datetime
+
+import requests
 from wand.color import Color
 from wand.display import display
 from wand.drawing import Drawing
 from wand.image import Image
-import json
-import requests
-
 
 # 每一行最多35个字
 line_word_num = 35
@@ -49,6 +49,7 @@ def cal_offset(words,video_time):
     # 总高度/页高 * 页高 / 时间
     print(lines)
     total_height = lines * line_height + lines * line_split
+    # height 3900 
     print(total_height, video_time)
     offset = total_height / (video_time * video_fps)
     if total_height < image_height:
@@ -66,12 +67,27 @@ def cal_offset_v2(words,video_time):
     for word in words:
         total = total + len(word)
     word_time = video_time / total
+    print('totalheigth',cal_height(70))
     for index,val in enumerate(words):
+        '''
+            if index < 8:
+                height = cal_height(index)
+            else :
+                height = cal_height(index)
+        '''
         # print(index,val)
-        height = cal_height(len(val) // line_word_num + 1)
+        if index < 8:
+            height = cal_height(index)
+        else :
+            height = line_height
+        # height = cal_height(len(val) // line_word_num + 1)
         time = len(val) * word_time
-        offset = height / time * video_fps
-        res.append(offset)
+        
+        print ('index====>',index,height,time)
+        offset = height / (time * video_fps) / 3
+        # res.append(offset)
+        print(sum([offset] * (int(time * video_fps) + 1)))
+        res = res + [offset] * (int(time * video_fps) + 1)
     return res
 
 
@@ -79,7 +95,7 @@ def draw_one_picture(filename,words,offset,height=400,width=900):
     with Color("#FFFACD") as bg:
         with Image(width=width,height=height,background=bg) as image:
             draw = Drawing()
-            draw.font = './fonts/qs.otf'
+            draw.font = './fonts/dq.otf'
             draw.font_size = 20
             line = 0
             for word in words:
@@ -182,27 +198,29 @@ if __name__ == '__main__':
     print('生成音频长度为',video_time ,'秒')
     offset = cal_offset(words,video_time)
     offset = cal_offset_v2(words,video_time)
-    print("计算出每帧偏移值为",offset)
+    # print("计算出每帧偏移值为",offset)
     timestamp = int(time.time())
     dir_name = './images/imgs_{0}'.format(timestamp)
     os.makedirs(dir_name)
+    video_off = 0
+    print(video_fps * video_time)
+    print(sum(offset))
     for i in range(video_fps * video_time) :
         filename = './images/imgs_{0}/{1}.jpg'.format(timestamp,i+1)
-        now_off = int(offset[i] * i)
-        # print('===>',now_off,offset)
-        draw_one_picture(filename,words,now_off)
+        # now_off = int(offset[i] * i)
+        video_off = video_off + offset[i]
+        print('===>',i,video_off,int(video_off))
+        draw_one_picture(filename,words,int(video_off))
     video_name = './video/{0}.mp4'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
     # 这里因为码率的问题 只能吧文件改成mkv格式
     result_name = './results/{0}.mkv'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
     # print("ffmpeg -f image2 -i ./imgs_{0}/%d.jpg ./results/{1}.mp4".format(timestamp,video_name))
     p = subprocess.Popen("ffmpeg -f image2 -i ./images/imgs_{0}/%d.jpg {1} -v 0".format(timestamp,video_name),shell=True,stdout=subprocess.PIPE)
     p.wait()
+    print(p.communicate())
     print('生成文件名为',video_name)
     print("开始音频视频合并")
     
     p = subprocess.Popen('ffmpeg -i {0} -i {1} -strict -2 {2} -v 0'.format(os.path.abspath(video_name),os.path.abspath(vioce_name),os.path.abspath(result_name)),shell=True,stdout=subprocess.PIPE)
     p.wait()
     print("合并完成 视频名",result_name)
- 
-    
-  
